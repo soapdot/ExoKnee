@@ -1,2 +1,2 @@
 # ExoKnee
-Arduino code with a C++ User Interface.
+Arduino code for a wearable robot focused around moving the knee with a C++ User Interface.
