@@ -20,7 +20,7 @@
 #define LED_PIN 13
 bool blinkState = false;
 bool standing = true, sitting = false, moving = false; //standing is default state
-//bool currStand = true, currSit = false, currMove = false; 
+bool RStance = true, LStance = true;
 int MuscleUseRC = 0, MuscleUseRT = 0;
 
 // I2C addr: AD0 low = 0x68 (default) | AD0 high = 0x69
@@ -43,7 +43,7 @@ int EMG_RC_VAL;
 const int EMG_RT_PIN = A1;
 const int EMG_RC_PIN = A2;
 
-int readEMG(int EMG_VAL) {
+int ReadEMG(int EMG_VAL) {
   int MuscleUse;
   if (EMG_VAL > 500) {
     MuscleUse = 1;
@@ -70,7 +70,7 @@ bool SitCheck() { //function is hardcoded w these for sitting IMU_RT_ay, IMU_RT_
 bool StandUpCheck() { //stay in function until standing MuscleUseRC, moving, standing, sitting
   while (sitting == true) {
     moving = false;
-    //MuscleUseRC = readEMG(EMG_RC_VAL); //given by funct header
+    //MuscleUseRC = ReadEMG(EMG_RC_VAL); //given as vars are global
     if (MuscleUseRC == 1) { //user activating calf, indicates starting to stand 
       standing = true;
       delay(2000); //delay 2s while user is in process of standing
@@ -78,6 +78,57 @@ bool StandUpCheck() { //stay in function until standing MuscleUseRC, moving, sta
     }
   }
   return standing;
+}
+
+bool SwingStanceCheck() {
+  int standCount = 0;
+  if (standing == true) { //rstance = true, moving = false;
+    delay(500);
+    loopEMGRC(); //update emg val
+    MuscleUseRC = ReadEMG(EMG_RC_VAL); //update muscleuse val
+    if (MuscleUseRC == 1) { 
+      return RStance, moving;
+    }
+  }
+  else if (MuscleUseRC == 1) { //user activating calf, could be sign of standing or starting movement
+    for (int standCount=0; standCount<3; standCount++) {
+      delay(500); //delay 0.5s
+      loopEMGRC(); //update emg val
+      MuscleUseRC = ReadEMG(EMG_RC_VAL); //update muscleuse val
+      if (MuscleUseRC == 0) { //if no longer standing on right leg, right in swing 
+        RStance = false;
+        LStance = true;
+        moving = true;
+        return RStance, moving; 
+      }
+    }
+    // if for loop doesn't return, leg has been still for 1.5s (standing)
+    RStance = true;
+    LStance = true;
+    standing = true;
+    moving = false;
+    return RStance, moving;
+  }
+  else if (RStance == true) { // moving; standing on right leg
+    loopEMGRC(); //update emg val
+    MuscleUseRC = ReadEMG(EMG_RC_VAL); //update muscleuse val
+    if (MuscleUseRC == 0) { //if no longer standing on right leg, right in swing
+      RStance = false;
+      LStance = true;
+      moving = true;
+      return RStance, moving; 
+    }
+  }
+  else if (LStance == true) { // moving; standing on left leg
+    loopEMGRC(); //update emg val
+    MuscleUseRC = ReadEMG(EMG_RC_VAL); //update muscleuse val
+    if (MuscleUseRC == 1) { //if now standing on right leg, left in swing
+      RStance = true;
+      LStance = false;
+      moving = true;
+      return RStance, moving; 
+    }
+  }
 }
 
 void setup() {
@@ -102,14 +153,16 @@ void loop() {
   loopEMGRT();
   loopEMGRC();
 
-  //update interpretations
-  MuscleUseRT = readEMG(EMG_RT_VAL);
-  MuscleUseRC = readEMG(EMG_RC_VAL);
+  //update interpretations / phase
+  MuscleUseRT = ReadEMG(EMG_RT_VAL);
+  MuscleUseRC = ReadEMG(EMG_RC_VAL);
   //first check for sitting motion; if sitting, don't need to run other movement functions for now
   sitting = SitCheck(); //EMG_RC_VAL, MuscleUseRC, IMU_RT_ay, IMU_RT_ax
   while ((sitting == true)&&(standing == false)) { //while sitting, until standing:
     //output to c++ : sit mode
     standing = StandUpCheck(); //stay in StandUpCheck function (won't be doing other movement func during sit)
   }
-
+  while (moving == true) { //continuing from last check, or should we stay in moving ?
+    RStance, moving = SwingStanceCheck();
+  }
 }
