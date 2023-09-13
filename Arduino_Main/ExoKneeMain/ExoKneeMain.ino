@@ -15,7 +15,7 @@
 // not so easy to parse, and slow(er) over UART.
 #define OUTPUT_READABLE_IMU_RT
 #define OUTPUT_READABLE_IMU_RC
-#define OUTPUT_READABLE_IMU_L
+#define OUTPUT_READABLE_IMU_LC
 
 #define LED_PIN 13
 bool blinkState = false;
@@ -24,12 +24,12 @@ bool RStance = true, LStance = true;
 int MuscleUseRC = 0, MuscleUseRT = 0;
 
 // I2C addr: AD0 low = 0x68 (default) | AD0 high = 0x69
-MPU6050 IMU_L(0x68); 
+MPU6050 IMU_LC(0x68); 
 MPU6050 IMU_RT(0x69);         //MPU6050 IMU_L(0x69); // <-- use for AD0 high
 MPU6050 IMU_RC(0x68, &Wire);  //MPU6050 IMU_L(0x68, &Wire1); // <-- use for AD0 low, but 2nd Wire (TWI/I2C) object
 
-int16_t IMU_L_ax, IMU_L_ay, IMU_L_az;
-int16_t IMU_L_gx, IMU_L_gy, IMU_L_gz;
+int16_t IMU_LC_ax, IMU_LC_ay, IMU_LC_az;
+int16_t IMU_LC_gx, IMU_LC_gy, IMU_LC_gz;
 
 int16_t IMU_RT_ax, IMU_RT_ay, IMU_RT_az;
 int16_t IMU_RT_gx, IMU_RT_gy, IMU_RT_gz;
@@ -57,10 +57,12 @@ int ReadEMG(int EMG_VAL) {
 bool SitCheck() { //function is hardcoded w these for sitting IMU_RT_ay, IMU_RT_ax, sitting, standing
   // right now the user must move in a straight line forwards only OR sit (backwards may be seen as a sit)
   if ((IMU_RT_ay < 0)&&(IMU_RT_ax < 0)) { // moving/rotating backwards & down (a or g?)
+    Serial.println("SitCheck Results: Yes Sit");
     sitting = true;
     standing = false;
   }
   else {
+    Serial.println("SitCheck Results: No Sit");
     sitting = false;
     //moving and standing decided by StanceCheck
   }
@@ -70,63 +72,81 @@ bool SitCheck() { //function is hardcoded w these for sitting IMU_RT_ay, IMU_RT_
 bool StandUpCheck() { //stay in function until standing MuscleUseRC, moving, standing, sitting
   while (sitting == true) {
     moving = false;
+    Serial.println("StandUpCheck: Sitting");
     //MuscleUseRC = ReadEMG(EMG_RC_VAL); //given as vars are global
     if (MuscleUseRC == 1) { //user activating calf, indicates starting to stand 
+      Serial.println("StandUpCheck: Starting Stand, 2s til next results");
       standing = true;
       delay(2000); //delay 2s while user is in process of standing
       sitting = false; //escape loop
     }
   }
-  return standing;
+  return standing; //should always be standing = true;
 }
 
 bool SwingStanceCheck() {
   int standCount = 0;
   if (standing == true) { //rstance = true, moving = false;
-    delay(500);
+    delay(300); //delay .3s, chance to start moving
     loopEMGRC(); //update emg val
     MuscleUseRC = ReadEMG(EMG_RC_VAL); //update muscleuse val
-    if (MuscleUseRC == 1) { 
-      return RStance, moving;
+    if ((MuscleUseRC == 1)&&(IMU_LC_ax > 0)) {  // starting movement with RStance, LSwing 
+      Serial.println("SwingStanceCheck: Starting Moving, RStance/LSwing");
+      moving = true;
+      standing = false;
+      RStance = true;
+      LStance = false;
+      return RStance, LStance, moving;
+    }
+    else if ((MuscleUseRC == 0)&&(IMU_RC_ax > 0)) { // starting movement with RSwing, LStance
+      Serial.println("SwingStanceCheck: Starting Moving, LStance/RSwing");
+      moving = true;
+      standing = false;
+      RStance = false;
+      LStance = true;
+      return RStance, LStance, moving;
+    }
+    else { //still standing
+      Serial.println("SwingStanceCheck: Standing");
+      return RStance, LStance, moving; 
     }
   }
-  else if (MuscleUseRC == 1) { //user activating calf, could be sign of standing or starting movement
-    for (int standCount=0; standCount<3; standCount++) {
-      delay(500); //delay 0.5s
-      loopEMGRC(); //update emg val
-      MuscleUseRC = ReadEMG(EMG_RC_VAL); //update muscleuse val
-      if (MuscleUseRC == 0) { //if no longer standing on right leg, right in swing 
+  else if (moving == true) { 
+    loopEMGRC(); //update emg val
+    MuscleUseRC = ReadEMG(EMG_RC_VAL); //update muscleuse val
+    if (RStance == true) { //standing on right leg at last check
+      if ((MuscleUseRC == 0)&&(IMU_RC_ax > 0)) { //if no longer standing on right leg, right in swing 
         RStance = false;
         LStance = true;
         moving = true;
-        return RStance, moving; 
+        return RStance, LStance, moving; 
+      }
+      else if ((MuscleUseRC == 1)&&(IMU_LC_ax > 0)) { //still standing on right leg, left in swing
+        return RStance, LStance, moving; 
+      }
+      else { // neither in swing; standing
+        moving = false;
+        LStance = true;
+        standing = true;
+        return RStance, LStance, moving; 
       }
     }
-    // if for loop doesn't return, leg has been still for 1.5s (standing)
-    RStance = true;
-    LStance = true;
-    standing = true;
-    moving = false;
-    return RStance, moving;
-  }
-  else if (RStance == true) { // moving; standing on right leg
-    loopEMGRC(); //update emg val
-    MuscleUseRC = ReadEMG(EMG_RC_VAL); //update muscleuse val
-    if (MuscleUseRC == 0) { //if no longer standing on right leg, right in swing
-      RStance = false;
-      LStance = true;
-      moving = true;
-      return RStance, moving; 
-    }
-  }
-  else if (LStance == true) { // moving; standing on left leg
-    loopEMGRC(); //update emg val
-    MuscleUseRC = ReadEMG(EMG_RC_VAL); //update muscleuse val
-    if (MuscleUseRC == 1) { //if now standing on right leg, left in swing
-      RStance = true;
-      LStance = false;
-      moving = true;
-      return RStance, moving; 
+    else if (LStance == true) { //standing on left leg at last check
+      if ((MuscleUseRC == 0)&&(IMU_LC_ax > 0)) { //if no longer standing on left leg, left in swing 
+        RStance = true;
+        LStance = false;
+        moving = true;
+        return RStance, LStance, moving; 
+      }
+      else if ((MuscleUseRC == 1)&&(IMU_RC_ax > 0)) { //still standing on left leg, right in swing
+        return RStance, LStance, moving; 
+      }
+      else { // neither in swing; standing
+        moving = false;
+        LStance = true;
+        standing = true;
+        return RStance, LStance, moving; 
+      }
     }
   }
 }
@@ -140,7 +160,7 @@ void setup() {
   setupEMGRT();
   setupEMGRC();
   delay(5000); //delay 5s
-  Serial.println(IMU_L.testConnection() ? "MPU6050 L connection successful" : "MPU6050 L connection failed");
+  Serial.println(IMU_LC.testConnection() ? "MPU6050 L connection successful" : "MPU6050 L connection failed");
   Serial.println(IMU_RC.testConnection() ? "MPU6050 RC connection successful" : "MPU6050 RC connection failed");
   delay(5000); //delay 5s
 
@@ -162,7 +182,8 @@ void loop() {
     //output to c++ : sit mode
     standing = StandUpCheck(); //stay in StandUpCheck function (won't be doing other movement func during sit)
   }
-  while (moving == true) { //continuing from last check, or should we stay in moving ?
-    RStance, moving = SwingStanceCheck();
+  //how to get moving = true initially? 
+  while (moving == true) { //continuing from last check
+    RStance, LStance, moving = SwingStanceCheck();
   }
 }
