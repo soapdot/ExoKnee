@@ -86,7 +86,7 @@ bool StandUpCheck() { //stay in function until standing MuscleUseRC, moving, sta
 
 bool SwingStanceCheck() {
   int standCount = 0;
-  if (standing == true) { //rstance = true, moving = false;
+  if (standing == true) { //rstance = true, moving = false; check if starting movement
     delay(300); //delay .3s, chance to start moving
     loopEMGRC(); //update emg val
     MuscleUseRC = ReadEMG(EMG_RC_VAL); //update muscleuse val
@@ -111,7 +111,7 @@ bool SwingStanceCheck() {
       return RStance, LStance, moving; 
     }
   }
-  else if (moving == true) { 
+  else if (moving == true) { // in movement, check if stopping or update phase of movement
     loopEMGRC(); //update emg val
     MuscleUseRC = ReadEMG(EMG_RC_VAL); //update muscleuse val
     if (RStance == true) { //standing on right leg at last check
@@ -160,7 +160,7 @@ void setup() {
   setupEMGRT();
   setupEMGRC();
   delay(5000); //delay 5s
-  Serial.println(IMU_LC.testConnection() ? "MPU6050 L connection successful" : "MPU6050 L connection failed");
+  Serial.println(IMU_LC.testConnection() ? "MPU6050 LC connection successful" : "MPU6050 LC connection failed");
   Serial.println(IMU_RC.testConnection() ? "MPU6050 RC connection successful" : "MPU6050 RC connection failed");
   delay(5000); //delay 5s
 

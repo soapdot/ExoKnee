@@ -9,16 +9,16 @@ void setupIMUL() {
     #endif
 
     // initialize device
-    Serial.println("Initializing I2C (L) device...");
+    Serial.println("Initializing I2C (LC) device...");
     IMU_LC.initialize();
 
     // verify connection
-    Serial.println("Testing device (L) connection...");
-    Serial.println(IMU_LC.testConnection() ? "MPU6050 L connection successful" : "MPU6050 L connection failed");
+    Serial.println("Testing device (LC) connection...");
+    Serial.println(IMU_LC.testConnection() ? "MPU6050 LC connection successful" : "MPU6050 LC connection failed");
 
     // use the code below to change accel/gyro offset values
     
-    Serial.println("Updating internal L sensor offsets...");
+    Serial.println("Updating internal LC sensor offsets...");
     // -76	-2359	1688	0	0	0
     Serial.print(IMU_LC.getXAccelOffset()); Serial.print("\t"); // -76
     Serial.print(IMU_LC.getYAccelOffset()); Serial.print("\t"); // -2359
