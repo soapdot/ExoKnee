@@ -2,7 +2,7 @@
 void setupEMGRC() {
   // initialize serial communication at 9600 bits per second:
   EMG_RC_VAL = 0;
-  Serial.println("Initializing A1 Device [EMG_RC]");
+  Serial.println("Initializing A2 Device [EMG_RC]");
   pinMode(EMG_RC_PIN, INPUT);
 }
 

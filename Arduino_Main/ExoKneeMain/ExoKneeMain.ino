@@ -70,7 +70,7 @@ bool SitCheck() { //function is hardcoded w these for sitting IMU_RT_ay, IMU_RT_
 }
 
 bool StandUpCheck() { //stay in function until standing MuscleUseRC, moving, standing, sitting
-  while (sitting == true) {
+  if (sitting == true) {
     moving = false;
     Serial.println("StandUpCheck: Sitting");
     //MuscleUseRC = ReadEMG(EMG_RC_VAL); //given as vars are global
@@ -81,7 +81,7 @@ bool StandUpCheck() { //stay in function until standing MuscleUseRC, moving, sta
       sitting = false; //escape loop
     }
   }
-  return standing; //should always be standing = true;
+  return standing; 
 }
 
 bool SwingStanceCheck() {
@@ -180,7 +180,11 @@ void loop() {
   sitting = SitCheck(); //EMG_RC_VAL, MuscleUseRC, IMU_RT_ay, IMU_RT_ax
   while ((sitting == true)&&(standing == false)) { //while sitting, until standing:
     //output to c++ : sit mode
+    loopEMGRC(); //update val
     standing = StandUpCheck(); //stay in StandUpCheck function (won't be doing other movement func during sit)
+    if (standing == false) {
+      delay(500); //wait 0.5s before checking again
+    }
   }
   //how to get moving = true initially? 
   while (moving == true) { //continuing from last check
