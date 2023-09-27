@@ -25,7 +25,7 @@ int CodeSelector;
 
 void setup() {
   Serial.begin(38400);
-  Serial.print("Do you want to run MPU6050_raw (1) or SitCheck (2)?");
+  Serial.print("Do you want to run EMG_analog_read (1) or ReadEMG (2) or StandUpCheck (3)?");
   //wait for user input
   while (Serial.available() == 0) {
   }
