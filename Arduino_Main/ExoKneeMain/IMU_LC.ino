@@ -1,4 +1,14 @@
-// wired into pins above AREF on Arduino MEGA
+/* ==============================================
+ExoSuit Project Main: 
+IMU (inertial measurement unit) Sensor for Left Calf
+Wired to: I2C pins above AREF on Arduino MEGA
+=================================================
+For IMUs; x, y, z defined as:
+. x forward (pointing past knee), 
+. y up (pointing toward body of user), 
+. z away from leg (toward observer)
+when looking at the leg from the side view 
+=================================================*/
 
 void setupIMUL() {
     // join I2C bus (I2Cdev library doesn't do this automatically)

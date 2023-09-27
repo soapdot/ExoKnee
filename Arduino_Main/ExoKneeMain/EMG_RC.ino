@@ -1,3 +1,14 @@
+/* ==============================================
+ExoSuit Project Main: 
+EMG (Electromyography) Sensor for Right Calf
+Wired to: +-9V/1A, A2
+=================================================
+For EMGs; 
+Value is between 0-1000 where >500 is high
+For now, only counting MuscleUse as a bool
+May add levels based on average findings (0-3)
+=================================================*/
+
 // the setup routine runs once when you press reset:
 void setupEMGRC() {
   // initialize serial communication at 9600 bits per second:

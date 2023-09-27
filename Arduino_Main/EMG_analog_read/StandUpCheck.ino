@@ -22,16 +22,16 @@ bool StandUpCheck() { //stay in function until standing MuscleUseRC, moving, sta
   Serial.println("StandUpCheck: Escaped sitting loop");
   return standing; 
 }
-void setup() {//uncomment this to test as main func
-//void setupSUC() {//comment this to test as main func
+//void setup() {//uncomment this to test as main func
+void setupSUC() {//comment this to test as main func
   Serial.begin(9600); // 2400 FOR IMU + 9600 FOR EMG (IMU/EMG Rec: 115200)
   EMG_RC_VAL = 0;
   Serial.println("Initializing A2 Device [EMG_RC]");
   pinMode(EMG_RC_PIN, INPUT);
 }
 
-void loop() {//uncomment this to test as main func
-//void loopSUC() {//comment this to test as main func
+//void loop() {//uncomment this to test as main func
+void loopSUC() {//comment this to test as main func
   //update val
   EMG_RC_VAL = analogRead(EMG_RC_PIN);
   Serial.println(EMG_RC_VAL);

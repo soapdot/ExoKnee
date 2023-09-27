@@ -15,22 +15,6 @@ when looking at the leg from the side view
 #include "I2Cdev.h"
 #include "MPU6050.h"
 
-// Arduino Wire library is required if I2Cdev I2CDEV_ARDUINO_WIRE implementation
-// is used in I2Cdev.h
-#if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
-    #include "Wire.h"
-#endif
-
-#define OUTPUT_READABLE_IMU_RT
-#define LED_PIN 13
-bool blinkState = false;
-bool standing = true, sitting = false, moving = false; //standing is default state
-
-MPU6050 IMU_RT(0x69);         //MPU6050 IMU_L(0x69); // <-- use for AD0 high
-
-int16_t IMU_RT_ax, IMU_RT_ay, IMU_RT_az;
-int16_t IMU_RT_gx, IMU_RT_gy, IMU_RT_gz;
-
 bool SitCheck() { //function is hardcoded w these for sitting IMU_RT_ay, IMU_RT_ax, sitting, standing
   // right now the user must move in a straight line forwards only OR sit (backwards may be seen as a sit)
   if ((IMU_RT_ay < 0)&&(IMU_RT_ax < 0)) { // moving/rotating backwards & down (a or g?)
@@ -46,9 +30,7 @@ bool SitCheck() { //function is hardcoded w these for sitting IMU_RT_ay, IMU_RT_
   return sitting;
 }
 
-// wired into pins "SDA/SCL" on Arduino MEGA
-
-void setup() {
+void setupSC() {
   // join I2C bus (I2Cdev library doesn't do this automatically)
   #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
       Wire.begin();
@@ -86,7 +68,7 @@ void setup() {
   Serial.print("\n");
 }
 
-void loopIMURT() {
+void loopSC0() {
   // read raw accel/gyro measurements from device
   IMU_RT.getMotion6(&IMU_RT_ax, &IMU_RT_ay, &IMU_RT_az, &IMU_RT_gx, &IMU_RT_gy, &IMU_RT_gz);
 
@@ -110,7 +92,8 @@ void loopIMURT() {
   digitalWrite(LED_PIN, blinkState);
 }
 
-void loop() {
-  loopIMURT();
-  sitting = SitCheck();
+void loopSC1() {
+  loopSC0(); //update values
+  sitting = SitCheck(); //check if sitting
+  delay(500); //delay 0.5s before rechecking
 }

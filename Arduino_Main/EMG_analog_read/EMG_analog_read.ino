@@ -3,11 +3,11 @@ ExoSuit Project Basics:
 Trying individual EMG Sensor 
 This code converts analog input to voltage 
 and prints graphical representation via serial plotter
-Only have one plugged into the A1 connection
+Only have one plugged into the A2 connection
 ===============================================*/
 
 int sensorValue;
-int sensorPin = A1;
+int sensorPin = A2;
 // the setup routine runs once when you press reset:
 //void setup() { //uncomment this to test as main func
 void setupEMG() { //comment this to test as main func

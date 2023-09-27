@@ -1,3 +1,20 @@
+/* ==============================================
+ExoSuit Project Main: 
+Main is made up of 5 sensors in 4 tabs:
+EMG_RT, EMG_RC, IMU_LC, and IMU_RT_RC
+Abbreviations: R/L = Right/Left, T/C = Thigh/Calf
+=================================================
+For EMGs; 
+Value is between 0-1000 where >500 is high
+For now, only counting MuscleUse as a bool
+May add levels based on average findings (0-3)
+=================================================
+For IMUs; x, y, z defined as:
+. x forward (pointing past knee), 
+. y up (pointing toward body of user), 
+. z away from leg (toward observer)
+when looking at the leg from the side view 
+=================================================*/
 
 // I2Cdev and MPU6050 must be installed as libraries, or else the .cpp/.h files
 // for both classes must be in the include path of your project
