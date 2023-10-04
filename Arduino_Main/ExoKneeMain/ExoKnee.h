@@ -28,56 +28,42 @@ May add levels based on average findings (0-3)
   #include "Wire.h"
 #endif
 
-// uncomment "OUTPUT_READABLE_IMU_L" if you want to see a tab-separated
-// list of the accel X/Y/Z and then gyro X/Y/Z values in decimal. Easy to read,
-// not so easy to parse, and slow(er) over UART.
+// tab-separated list of the accel X/Y/Z & gyro X/Y/Z values in decimal. Easy to read, not to parse, slow(er) over UART.
 #define OUTPUT_READABLE_IMU_RT
 #define OUTPUT_READABLE_IMU_RC
 #define OUTPUT_READABLE_IMU_LC
 
 #define LED_PIN 13
-bool blinkState = false;
-bool standing = true, sitting = false, moving = false; //standing is default state
-bool RStance = true, LStance = true;
-int MuscleUseRC = 0, MuscleUseRT = 0;
-int EStop = 0;
-int percentExtend = 0; //not actually %, but int out of 2000 (time for max extend/retract)
+#define EMG_RT_PIN A1
+#define EMG_RC_PIN A2
+#define EStop_PIN 9
+#define EN_PIN 4
+#define R_PWM_PIN 5
+#define L_PWM_PIN 6
+
+bool blinkState = false;              //updates LED
+int MuscleUseRC = 0, MuscleUseRT = 0; //updated by EMG 
+int EStop = 0;                        //updated by estop button
+int speed = 0;                        //used by LA, speed 0-255 
+int percentExtend = 0;  //not actually %, but an int out of 2000 (time for max extend/retract at max speed)
+bool standing = true, sitting = false, moving = false; //standing is default
+bool RStance = true, LStance = true;                   //standing = stanced both legs
 
 // IMU Sensors: I2C, 3.3V, GND; DI interrupt, DI AD0
-// I2C addr: AD0 low = 0x68 (default) | AD0 high = 0x69
-MPU6050 IMU_LC(0x68);
-MPU6050 IMU_RT(0x69);         //MPU6050 IMU_L(0x69); // <-- use for AD0 high
-MPU6050 IMU_RC(0x68, &Wire);  //MPU6050 IMU_L(0x68, &Wire1); // <-- use for AD0 low, but 2nd Wire (TWI/I2C) object
+MPU6050 IMU_RT(0x69), IMU_RC(0x68); // I2C addr: AD0 low = 0x68 (default) | AD0 high = 0x69
+MPU6050 IMU_LC(0x68, &Wire); //MPU6050 IMU_L(0x68, &Wire1); // <-- use for AD0 low, but 2nd Wire (TWI/I2C) object
 
-int16_t IMU_LC_ax, IMU_LC_ay, IMU_LC_az;
-int16_t IMU_LC_gx, IMU_LC_gy, IMU_LC_gz;
-
-int16_t IMU_RT_ax, IMU_RT_ay, IMU_RT_az;
-int16_t IMU_RT_gx, IMU_RT_gy, IMU_RT_gz;
-
-int16_t IMU_RC_ax, IMU_RC_ay, IMU_RC_az;
-int16_t IMU_RC_gx, IMU_RC_gy, IMU_RC_gz;
+int16_t IMU_LC_ax, IMU_LC_ay, IMU_LC_az, IMU_LC_gx, IMU_LC_gy, IMU_LC_gz; //a = accelerometer value
+int16_t IMU_RT_ax, IMU_RT_ay, IMU_RT_az, IMU_RT_gx, IMU_RT_gy, IMU_RT_gz; //g = gyroscope value
+int16_t IMU_RC_ax, IMU_RC_ay, IMU_RC_az, IMU_RC_gx, IMU_RC_gy, IMU_RC_gz; //xyz = directions defined at top of file
 
 // EMG Sensors: 5V, GND; AI input
-int EMG_RT_VAL;
-int EMG_RC_VAL;
-const int EMG_RT_PIN = A1;
-const int EMG_RC_PIN = A2;
+int EMG_RT_VAL, EMG_RC_VAL; //analog input of muscle sensor 0-1023
 
-// Motor Controller/Linear Actuator
-const int EStop_PIN = 9;
-const int EN_PIN = 4;
-const int R_PWM_PIN = 5;
-const int L_PWM_PIN = 6;
-//todo: not sure if these are necessary/should be 4/5/6
-const uint8_t EN = 4;
-const uint8_t R_PWM = 5;
-const uint8_t L_PWM = 6;
-
-int speed = 0;
+// Motor Controller/Linear Actuator used for clarity to reader
+int EN = EN_PIN, R_PWM = R_PWM_PIN, L_PWM = L_PWM_PIN;
 
 //setup/loops
-
 // the setup routine runs once when you press reset:
 void setupEMGRT() {
   // initialize serial communication at 9600 bits per second:
