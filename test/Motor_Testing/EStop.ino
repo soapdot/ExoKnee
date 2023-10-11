@@ -34,11 +34,10 @@ void loopES() {
   if (timeExtend >= 7500) { //2s max speed -> 8s at 1/4 speed
     for (int i=0; i<15; i++) { //7500/500 = 15 (15 intervals of 0.5s = 7.5s)
       EStopCheck();
-      retractVarLA(64, 500); //retract LA at 1/4 speed 
-      timeExtend -= 500;
+      retractVarLA(25, 500); //retract LA at 1/4 speed 
     }
   }
-  extendVarLA(64, 500); //extend at 1/4 speed for 0.5s 
-  timeExtend += 500;
+  extendVarLA(25, 500); //extend at 1/4 speed for 0.5s 
+  delay(500); //delay 0.5s
   EStopCheck();
 }

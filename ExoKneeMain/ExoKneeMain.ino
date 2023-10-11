@@ -3,7 +3,7 @@ ExoSuit Project Main:
 =================================================
 For EMGs; 
 Value is between 0-1000 where >500 is high
-For now, only counting MuscleUse as a bool
+MuscleUse is on scale of 0-3: 0 = x<50, 1 = 50<x<400 (calf power to stand), 2 = 400<x<1000 (high flex)
 May add levels based on average findings (0-3)
 =================================================
 For IMUs; x, y, z defined as:
@@ -71,7 +71,8 @@ void loop() {
       delay(500); //wait 0.5s before checking again
     }
   }
-  //how to get moving = true initially? 
+  //TODO: how to get moving = true initially? 
+  RStance, LStance, moving = SwingStanceCheck();
   while (moving == true) { //continuing from last check
     EStopCheck();
     RStance, LStance, moving = SwingStanceCheck();

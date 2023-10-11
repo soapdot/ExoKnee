@@ -266,11 +266,11 @@ void loopIMU() {
 //input processing functions
 int ReadEMG(int EMG_VAL) {
   int MuscleUse;
-  if (EMG_VAL > 500) {
-    MuscleUse = 1;
-  }
-  else {
+  if (EMG_VAL < 50) {
     MuscleUse = 0;
+  }
+  else if ((EMG_VAL > 50) && (EMG_VAL < 1000)){ //catching all usage right now; will expand 
+    MuscleUse = 1;
   }
   return MuscleUse;
 }
@@ -389,8 +389,8 @@ int LABoundsCheck(int speedI, int delayTime, int ExOrRe) {
   if (ExOrRe == 0) { //extension bound check
     perExtend1 = percentExtend + delayTime * speedI / 100;
     if (perExtend1 > 2000) {
-      delayTime = (2000 - percentExtend) / speedI * 100; //delayTime = time itd take to retract fully
-      percentExtend = 0; //min extend
+      delayTime = (2000 - percentExtend) * 100 / speedI; //delayTime = time itd take to extend fully
+      percentExtend = 2000; //max extend
     }
     else { //if not, continue as normal
       percentExtend = percentExtend - delayTime * speedI / 100;
@@ -399,7 +399,7 @@ int LABoundsCheck(int speedI, int delayTime, int ExOrRe) {
   else if (ExOrRe == 1) { //retraction bound check 
     perExtend1 = percentExtend - delayTime * speedI / 100;
     if (perExtend1 < 0) {
-      delayTime = (2000 - percentExtend) * 100 / speedI; //delayTime = time itd take to retract fully
+      delayTime = (percentExtend) * 100 / speedI; //delayTime = time itd take to retract fully
       percentExtend = 0; //min extend
     }
     else { //if not, continue as normal

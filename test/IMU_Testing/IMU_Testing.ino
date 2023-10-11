@@ -12,6 +12,7 @@ SitCheck():
 Trying SitCheck with one MPU6050 IMU Sensor 
 Only have one plugged into the I2C connection
 This will be the Right Thigh IMU "IMU_RT"
+===============================================
 x, y, z defined as:
 . x forward (pointing past knee), 
 . y up (pointing toward body of user), 
