@@ -54,12 +54,12 @@ void setupIMU() {
   accelgyro.setXGyroOffset(220);
   accelgyro.setYGyroOffset(76);
   accelgyro.setZGyroOffset(-85);
-  Serial.print(accelgyro.getXAccelOffset()); Serial.print("\t"); // -76
-  Serial.print(accelgyro.getYAccelOffset()); Serial.print("\t"); // -2359
-  Serial.print(accelgyro.getZAccelOffset()); Serial.print("\t"); // 1688
-  Serial.print(accelgyro.getXGyroOffset()); Serial.print("\t"); // 0
-  Serial.print(accelgyro.getYGyroOffset()); Serial.print("\t"); // 0
-  Serial.print(accelgyro.getZGyroOffset()); Serial.print("\t"); // 0
+  Serial.print(accelgyro.getXAccelOffset()/1000); Serial.print("\t"); // -76
+  Serial.print(accelgyro.getYAccelOffset()/1000); Serial.print("\t"); // -2359
+  Serial.print(accelgyro.getZAccelOffset()/1000); Serial.print("\t"); // 1688
+  Serial.print(accelgyro.getXGyroOffset()/100); Serial.print("\t"); // 0
+  Serial.print(accelgyro.getYGyroOffset()/100); Serial.print("\t"); // 0
+  Serial.print(accelgyro.getZGyroOffset()/100); Serial.print("\t"); // 0
   Serial.print("\n");
 
   // configure Arduino LED pin for output
@@ -77,12 +77,12 @@ void loopIMU() {
   #ifdef OUTPUT_READABLE_ACCELGYRO
       // display tab-separated accel/gyro x/y/z values
       Serial.print("a/g:\t");
-      Serial.print(ax); Serial.print("\t");
-      Serial.print(ay); Serial.print("\t");
-      Serial.print(az); Serial.print("\t");
-      Serial.print(gx); Serial.print("\t");
-      Serial.print(gy); Serial.print("\t");
-      Serial.println(gz);
+      Serial.print(ax/1000); Serial.print("\t");
+      Serial.print(ay/1000); Serial.print("\t");
+      Serial.print(az/1000); Serial.print("\t");
+      Serial.print(gx/100); Serial.print("\t");
+      Serial.print(gy/100); Serial.print("\t");
+      Serial.println(gz/100);
   #endif
 
   #ifdef OUTPUT_BINARY_ACCELGYRO

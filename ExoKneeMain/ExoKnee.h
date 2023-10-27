@@ -51,7 +51,7 @@ bool RStance = true, LStance = true;                   //standing = stanced both
 
 // IMU Sensors: I2C, 3.3V, GND; DI interrupt, DI AD0
 MPU6050 IMU_RT(0x69), IMU_RC(0x68); // I2C addr: AD0 low = 0x68 (default) | AD0 high = 0x69
-MPU6050 IMU_LC(0x68, &Wire); //MPU6050 IMU_L(0x68, &Wire1); // <-- use for AD0 low, but 2nd Wire (TWI/I2C) object
+MPU6050 IMU_LC(0x68); //MPU6050 IMU_L(0x68, &Wire1); // <-- use for AD0 low, but 2nd Wire (TWI/I2C) object
 
 int16_t IMU_LC_ax, IMU_LC_ay, IMU_LC_az, IMU_LC_gx, IMU_LC_gy, IMU_LC_gz; //a = accelerometer value
 int16_t IMU_RT_ax, IMU_RT_ay, IMU_RT_az, IMU_RT_gx, IMU_RT_gy, IMU_RT_gz; //g = gyroscope value
@@ -63,18 +63,31 @@ int EMG_RT_VAL, EMG_RC_VAL; //analog input of muscle sensor 0-1023
 // Motor Controller/Linear Actuator used for clarity to reader
 int EN = EN_PIN, R_PWM = R_PWM_PIN, L_PWM = L_PWM_PIN;
 
+int ReadEMG(int EMG_VAL) {
+  int MuscleUse;
+  if (EMG_VAL < 50) {
+    MuscleUse = 0;
+  }
+  else if ((EMG_VAL > 50) && (EMG_VAL < 1000)){ //catching all usage right now; will expand 
+    MuscleUse = 1;
+  }
+  return MuscleUse;
+}
+
 //setup/loops
 // the setup routine runs once when you press reset:
 void setupEMGRT() {
   // initialize serial communication at 9600 bits per second:
   EMG_RT_VAL = 0;
   Serial.println("Initializing A1 Device [EMG_RT]");
+  MuscleUseRT = ReadEMG(EMG_RT_VAL);
   pinMode(EMG_RT_PIN, INPUT);
 }
 void setupEMGRC() {
   // initialize serial communication at 9600 bits per second:
   EMG_RC_VAL = 0;
   Serial.println("Initializing A2 Device [EMG_RC]");
+  MuscleUseRT = ReadEMG(EMG_RT_VAL);
   pinMode(EMG_RC_PIN, INPUT);
 }
 void setupEMG() {
@@ -190,11 +203,13 @@ void setupIMU() {
 void loopEMGRT() {
   EMG_RT_VAL = analogRead(EMG_RT_PIN);
   //float voltage = EMG_TOP_VAL * (5.0 / 1023.0); // Analog reading (which goes from 0 - 1023) to a voltage (0 - 5V):
+  MuscleUseRT = ReadEMG(EMG_RT_VAL);
   Serial.println(EMG_RT_VAL);
 }
 void loopEMGRC() {
   EMG_RC_VAL = analogRead(EMG_RC_PIN);
   //float voltage = EMG_BOT_VAL * (5.0 / 1023.0);
+  MuscleUseRC = ReadEMG(EMG_RC_VAL);
   Serial.println(EMG_RC_VAL);
 }
 void loopEMG() {
@@ -264,16 +279,6 @@ void loopIMU() {
 }
 
 //input processing functions
-int ReadEMG(int EMG_VAL) {
-  int MuscleUse;
-  if (EMG_VAL < 50) {
-    MuscleUse = 0;
-  }
-  else if ((EMG_VAL > 50) && (EMG_VAL < 1000)){ //catching all usage right now; will expand 
-    MuscleUse = 1;
-  }
-  return MuscleUse;
-}
 
 void EStopCheck() {
   EStop = digitalRead(EStop_PIN);
@@ -305,7 +310,7 @@ bool StandUpCheck() { //stay in function until standing MuscleUseRC, moving, sta
   if (sitting == true) {
     moving = false;
     Serial.println("StandUpCheck: Sitting");
-    //MuscleUseRC = ReadEMG(EMG_RC_VAL); //given as vars are global
+    loopEMGRC();
     if (MuscleUseRC == 1) { //user activating calf, indicates starting to stand 
       Serial.println("StandUpCheck: Starting Stand, 2s til next results");
       standing = true;
@@ -320,8 +325,8 @@ bool SwingStanceCheck() {
   int standCount = 0;
   if (standing == true) { //rstance = true, moving = false; check if starting movement
     delay(300); //delay .3s, chance to start moving
-    loopEMGRC(); //update emg val
-    MuscleUseRC = ReadEMG(EMG_RC_VAL); //update muscleuse val
+    EStopCheck();
+    loopEMGRC(); //update emg/muscleuse val
     if ((MuscleUseRC == 1) && (IMU_LC_ax > 0)) {  // starting movement with RStance, LSwing 
       Serial.println("SwingStanceCheck: Starting Moving, RStance/LSwing");
       moving = true;
@@ -344,8 +349,7 @@ bool SwingStanceCheck() {
     }
   }
   else if (moving == true) { // in movement, check if stopping or update phase of movement
-    loopEMGRC(); //update emg val
-    MuscleUseRC = ReadEMG(EMG_RC_VAL); //update muscleuse val
+    loopEMGRC(); //update emg & muscleuse val
     if (RStance == true) { //standing on right leg at last check
       if ((MuscleUseRC == 0) && (IMU_RC_ax > 0)) { //if no longer standing on right leg, right in swing 
         RStance = false;
@@ -412,7 +416,11 @@ int LABoundsCheck(int speedI, int delayTime, int ExOrRe) {
 void extendLA() {
   analogWrite(R_PWM, 0);
   analogWrite(L_PWM, 255);
-  delay(2000 - percentExtend);
+  int fullDelay = (2000-percentExtend);
+  for (int intvl = (fullDelay)/10; intvl < fullDelay; intvl += (fullDelay)/10) {
+    EStopCheck();
+    delay(intvl);
+  }
   analogWrite(R_PWM, 0);
   analogWrite(L_PWM, 0);
   percentExtend = 2000;
@@ -421,7 +429,11 @@ void extendLA() {
 void retractLA() {
   analogWrite(R_PWM, 255);
   analogWrite(L_PWM, 0);
-  delay(percentExtend); //full retract
+  int fullDelay = percentExtend;
+  for (int intvl = fullDelay/10; intvl < fullDelay; intvl += fullDelay/10) { //checks every (max 2s/10 = .2s)
+    EStopCheck();
+    delay(intvl);
+  }
   analogWrite(R_PWM, 0);
   analogWrite(L_PWM, 0);
   percentExtend = 0;
@@ -436,7 +448,10 @@ void extendVarLA(int speedI, int delayTime) {
   speedI = speedI * 255 / 100; //convert to actual speed
   analogWrite(R_PWM, 0);
   analogWrite(L_PWM, speedI);
-  delay(delayTime);
+  for (int intvl = (delayTime)/10; intvl < delayTime; intvl+=(delayTime)/10) { //checks every (max 2s/10 = .2s)
+    EStopCheck();
+    delay(intvl);
+  }
   analogWrite(R_PWM, 0);
   analogWrite(L_PWM, 0);
 }
@@ -450,7 +465,10 @@ void retractVarLA(int speedI, int delayTime) {
   speedI = speedI * 255 / 100; //convert to actual speed
   analogWrite(R_PWM, speedI);
   analogWrite(L_PWM, 0);
-  delay(delayTime);
+  for (int intvl = (delayTime)/10; intvl < delayTime; intvl+=(delayTime)/10) { //checks every (max 2s/10 = .2s)
+    EStopCheck();
+    delay(intvl);
+  }
   analogWrite(R_PWM, 0);
   analogWrite(L_PWM, 0);
 }

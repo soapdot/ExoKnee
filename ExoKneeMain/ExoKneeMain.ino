@@ -68,7 +68,7 @@ void loop() {
     loopEMG(); //update val
     standing = StandUpCheck(); //stay in StandUpCheck function (won't be doing other movement func during sit)
     if (standing == false) {
-      delay(500); //wait 0.5s before checking again
+      delay(5000); //wait 0.5s before checking again
     }
   }
   //TODO: how to get moving = true initially? 
