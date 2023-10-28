@@ -35,7 +35,7 @@ when looking at the leg from the side view
 #define LED_PIN 13
 
 void setup() {
-  Serial.begin(9600); // 2400 FOR IMU + 9600 FOR EMG (IMU/EMG Rec: 115200)
+  Serial.begin(115200); // 2400 FOR IMU & 9600 FOR EMG (IMU/EMG Rec: 115200)
   // configure inputs/outputs
   pinMode(EStop_PIN, INPUT);
   pinMode(LED_PIN, OUTPUT);

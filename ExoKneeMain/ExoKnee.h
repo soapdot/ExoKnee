@@ -151,11 +151,11 @@ void setupIMUTest() {
   
   digitalWrite(RT_AD0, HIGH); digitalWrite(RC_AD0, LOW); digitalWrite(LC_AD0, HIGH);
   IMU_multiplexer[0] = 'R'; IMU_multiplexer[1] = 'C';
-  setupIMU1();
+  //setupIMU1();
   
   digitalWrite(RT_AD0, HIGH); digitalWrite(RC_AD0, HIGH); digitalWrite(LC_AD0, LOW);
   IMU_multiplexer[0] = 'L'; IMU_multiplexer[1] = 'C';
-  setupIMU1();
+  //setupIMU1();
 }
 
 void loopIMU1() {
