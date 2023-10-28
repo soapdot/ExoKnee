@@ -45,10 +45,6 @@ void setup() {
   setupIMU();
   setupEMG();
   delay(5000); //delay 5s
-  Serial.println(IMU_LC.testConnection() ? "MPU6050 LC connection successful" : "MPU6050 LC connection failed");
-  Serial.println(IMU_RC.testConnection() ? "MPU6050 RC connection successful" : "MPU6050 RC connection failed");
-  delay(5000); //delay 5s
-
 }
 
 void loop() {
@@ -62,14 +58,11 @@ void loop() {
   MuscleUseRC = ReadEMG(EMG_RC_VAL);
   //first check for sitting motion; if sitting, don't need to run other movement functions for now
   sitting = SitCheck(); //EMG_RC_VAL, MuscleUseRC, IMU_RT_ay, IMU_RT_ax
-  while ((sitting == true)&&(standing == false)) { //while sitting, until standing:
+  while (sitting == true) { //while sitting, until standing:
     //output to c++ : sit mode
     EStopCheck();
     loopEMG(); //update val
     standing = StandUpCheck(); //stay in StandUpCheck function (won't be doing other movement func during sit)
-    if (standing == false) {
-      delay(5000); //wait 0.5s before checking again
-    }
   }
   //TODO: how to get moving = true initially? 
   RStance, LStance, moving = SwingStanceCheck();
