@@ -54,7 +54,7 @@ void loop() {
   loopIMU();
   loopEMG();
   //val from loopEMG updates MuscleUse val 
-  MuscleUseRT = ReadEMG(EMG_RT_VAL);
+  MuscleUseLC = ReadEMG(EMG_LC_VAL);
   MuscleUseRC = ReadEMG(EMG_RC_VAL);
   //first check for sitting motion; if sitting, don't need to run other movement functions for now
   sitting = SitCheck(); //EMG_RC_VAL, MuscleUseRC, IMU_RT_ay, IMU_RT_ax

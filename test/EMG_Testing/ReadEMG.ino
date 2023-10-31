@@ -22,7 +22,6 @@ int ReadEMG(int EMG_VAL) {
 }
 //void setup() {//uncomment this to test as main func
 void setupEMGRead() {//comment this to test as main func
-  Serial.begin(9600); // 2400 FOR IMU + 9600 FOR EMG (IMU/EMG Rec: 115200)
   EMG_RC_VAL = 0;
   Serial.println("Initializing A2 Device [EMG_RC]");
   pinMode(EMG_RC_PIN, INPUT);

@@ -24,7 +24,7 @@ Checks for signs of user standing (EMG_RC -> MuscleUse = 1)
 int CodeSelector;
 
 void setup() {
-  Serial.begin(38400);
+  Serial.begin(2400);
   Serial.print("Do you want to run EMG_analog_read (1) or ReadEMG (2) or StandUpCheck (3)?");
   //wait for user input
   while (Serial.available() == 0) {

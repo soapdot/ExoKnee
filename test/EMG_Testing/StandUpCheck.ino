@@ -7,8 +7,6 @@ EMG sensor will be Right Calf sensor "EMG_RC" in A2
 ===============================================*/
 
 bool StandUpCheck() { //stay in function until standing MuscleUseRC, moving, standing, sitting
-  if (sitting == true) {
-    moving = false;
     Serial.println("StandUpCheck: Sitting");
     MuscleUseRC = ReadEMG(EMG_RC_VAL); 
     if (MuscleUseRC == 1) { //user activating calf, indicates starting to stand 
@@ -18,13 +16,11 @@ bool StandUpCheck() { //stay in function until standing MuscleUseRC, moving, sta
       Serial.println("StandUpCheck: Standing now (theoretically)");
       sitting = false; //escape loop
     }
-  }
   Serial.println("StandUpCheck: Escaped sitting loop");
   return standing; 
 }
 //void setup() {//uncomment this to test as main func
 void setupSUC() {//comment this to test as main func
-  Serial.begin(9600); // 2400 FOR IMU + 9600 FOR EMG (IMU/EMG Rec: 115200)
   EMG_RC_VAL = 0;
   Serial.println("Initializing A2 Device [EMG_RC]");
   pinMode(EMG_RC_PIN, INPUT);

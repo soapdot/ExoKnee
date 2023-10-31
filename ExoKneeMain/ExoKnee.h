@@ -1,6 +1,6 @@
 /* ==============================================
 ExoSuit Project Main: 
-5 sensors: EMG_RT, EMG_RC, IMU_LC, IMU_RT, IMU_RC
+5 sensors: EMG_LC, EMG_RC, IMU_LC, IMU_RT, IMU_RC
 Abbreviations: R/L = Right/Left, T/C = Thigh/Calf
 =================================================
 IMU (inertial measurement unit) Sensor for RT/RC
@@ -13,8 +13,8 @@ For IMUs; x, y, z defined as:
 . z away from leg (toward observer)
 when looking at the leg from the side view 
 =================================================
-EMG (Electromyography) Sensor for RC/RT
-Wired to: +-9V/1A, A2 (RC) & A1 (RT)
+EMG (Electromyography) Sensor for RC/LC
+Wired to: +-9V/1A, A2 (RC) & A1 (LC)
 =================================================
 For EMGs; 
 Value is between 0-1000 where >500 is high
@@ -34,7 +34,7 @@ May add levels based on average findings (0-3)
 #define OUTPUT_READABLE_IMU_LC
 
 #define LED_PIN 13
-#define EMG_RT_PIN A1
+#define EMG_LC_PIN A1
 #define EMG_RC_PIN A2
 #define EStop_PIN 9
 #define EN_PIN 4
@@ -42,7 +42,7 @@ May add levels based on average findings (0-3)
 #define L_PWM_PIN 6
 
 bool blinkState = false;              //updates LED
-int MuscleUseRC = 0, MuscleUseRT = 0; //updated by EMG 
+int MuscleUseRC = 0, MuscleUseLC = 0; //updated by EMG 
 int EStop = 0;                        //updated by estop button
 int speed = 0;                        //used by LA, speed 0-255 
 int percentExtend = 0;  //not actually %, but an int out of 2000 (time for max extend/retract at max speed)
@@ -50,7 +50,7 @@ bool standing = true, sitting = false, moving = false; //standing is default
 bool RStance = true, LStance = true;                   //standing = stanced both legs
 
 // IMU Sensors: I2C, 3.3V, GND; DI interrupt, DI AD0
-//MPU6050 IMU_RT(0x68), IMU_RC(0x69); // I2C addr: AD0 low = 0x68 (default) | AD0 high = 0x69
+MPU6050 IMU_RT(0x68), IMU_RC(0x69); // I2C addr: AD0 low = 0x68 (default) | AD0 high = 0x69
 //MPU6050 IMU_LC(0x68); //MPU6050 IMU_L(0x68, &Wire1); // <-- use for AD0 low, but 2nd Wire (TWI/I2C) object
 
 int16_t IMU_LC_ax, IMU_LC_ay, IMU_LC_az, IMU_LC_gx, IMU_LC_gy, IMU_LC_gz; //a = accelerometer value
@@ -58,7 +58,7 @@ int16_t IMU_RT_ax, IMU_RT_ay, IMU_RT_az, IMU_RT_gx, IMU_RT_gy, IMU_RT_gz; //g = 
 int16_t IMU_RC_ax, IMU_RC_ay, IMU_RC_az, IMU_RC_gx, IMU_RC_gy, IMU_RC_gz; //xyz = directions defined at top of file
 
 // EMG Sensors: 5V, GND; AI input
-int EMG_RT_VAL, EMG_RC_VAL; //analog input of muscle sensor 0-1023
+int EMG_LC_VAL, EMG_RC_VAL; //analog input of muscle sensor 0-1023
 
 // Motor Controller/Linear Actuator used for clarity to reader
 int EN = EN_PIN, R_PWM = R_PWM_PIN, L_PWM = L_PWM_PIN;
@@ -76,120 +76,24 @@ int ReadEMG(int EMG_VAL) {
 
 //setup/loops
 // the setup routine runs once when you press reset:
-void setupEMGRT() {
+void setupEMGLC() {
   // initialize serial communication at 9600 bits per second:
-  EMG_RT_VAL = 0;
-  Serial.println("Initializing A1 Device [EMG_RT]");
-  MuscleUseRT = ReadEMG(EMG_RT_VAL);
-  pinMode(EMG_RT_PIN, INPUT);
+  EMG_LC_VAL = 0;
+  Serial.println("Initializing A1 Device [EMG_LC]");
+  MuscleUseLC = ReadEMG(EMG_LC_VAL);
+  pinMode(EMG_LC_PIN, INPUT);
 }
 void setupEMGRC() {
   // initialize serial communication at 9600 bits per second:
   EMG_RC_VAL = 0;
   Serial.println("Initializing A2 Device [EMG_RC]");
-  MuscleUseRT = ReadEMG(EMG_RT_VAL);
+  MuscleUseRC = ReadEMG(EMG_RC_VAL);
   pinMode(EMG_RC_PIN, INPUT);
 }
 void setupEMG() {
-  setupEMGRT();
+  setupEMGLC();
   setupEMGRC();
 } 
-
-//TODO: start 3 imu testing
-
-MPU6050 IMU_Curr(0x68);
-int16_t IMU_ax, IMU_ay, IMU_az, IMU_gx, IMU_gy, IMU_gz; //a = accelerometer value
-char IMU_multiplexer[2] = {'x', 'x'};
-#define RT_AD0 50
-#define RC_AD0 52
-#define LC_AD0 48
-#define OUTPUT_READABLE_IMU
-
-void setupIMU1() {
-  // join I2C bus (I2Cdev library doesn't do this automatically)
-  #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
-    Wire.begin();
-  #elif I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_FASTWIRE
-    Fastwire::setup(400, true);
-  #endif
-
-  // initialize device
-  Serial.print(IMU_multiplexer); Serial.print(": Initializing I2C device"); Serial.print("\n"); 
-  IMU_Curr.initialize();
-
-  // verify connection
-  Serial.print(IMU_multiplexer); Serial.print(": Testing device connection..."); Serial.print("\n");
-  Serial.print(IMU_multiplexer); Serial.print(IMU_Curr.testConnection() ? ": MPU6050 IMU_Curr connection successful" : ": MPU6050 IMU_Curr connection failed"); Serial.print("\n");
-  
-  // use the code below to change accel/gyro offset values
-  // TODO: do we need these? i think they get overwritten with us doing a multiplexer anyways
-  // so either remove entirely or have one for each and when switching write the setoffsets 
-  /*
-  Serial.println("Updating internal IMU_Curr sensor offsets...");
-  // -76	-2359	1688	0	0	0
-  Serial.print(IMU_Curr.getXAccelOffset()); Serial.print("\t"); // -76
-  Serial.print(IMU_Curr.getYAccelOffset()); Serial.print("\t"); // -2359
-  Serial.print(IMU_Curr.getZAccelOffset()); Serial.print("\t"); // 1688
-  Serial.print(IMU_Curr.getXGyroOffset()); Serial.print("\t"); // 0
-  Serial.print(IMU_Curr.getYGyroOffset()); Serial.print("\t"); // 0
-  Serial.print(IMU_Curr.getZGyroOffset()); Serial.print("\t"); // 0
-  Serial.print("\n");
-  IMU_Curr.setXGyroOffset(220); IMU_Curr.setYGyroOffset(76); IMU_Curr.setZGyroOffset(-85);
-  Serial.print(IMU_Curr.getXAccelOffset()); Serial.print("\t"); // -76
-  Serial.print(IMU_Curr.getYAccelOffset()); Serial.print("\t"); // -2359
-  Serial.print(IMU_Curr.getZAccelOffset()); Serial.print("\t"); // 1688
-  Serial.print(IMU_Curr.getXGyroOffset()); Serial.print("\t"); // 0
-  Serial.print(IMU_Curr.getYGyroOffset()); Serial.print("\t"); // 0
-  Serial.print(IMU_Curr.getZGyroOffset()); Serial.print("\t"); // 0
-  Serial.print("\n");*/
-}
-
-void setupIMUTest() {
-  digitalWrite(RT_AD0, LOW); digitalWrite(RC_AD0, HIGH); digitalWrite(LC_AD0, HIGH);
-  IMU_multiplexer[0] = 'R'; IMU_multiplexer[1] = 'T';
-  setupIMU1();
-  
-  digitalWrite(RT_AD0, HIGH); digitalWrite(RC_AD0, LOW); digitalWrite(LC_AD0, HIGH);
-  IMU_multiplexer[0] = 'R'; IMU_multiplexer[1] = 'C';
-  //setupIMU1();
-  
-  digitalWrite(RT_AD0, HIGH); digitalWrite(RC_AD0, HIGH); digitalWrite(LC_AD0, LOW);
-  IMU_multiplexer[0] = 'L'; IMU_multiplexer[1] = 'C';
-  //setupIMU1();
-}
-
-void loopIMU1() {
-  IMU_Curr.getMotion6(&IMU_ax, &IMU_ay, &IMU_az, &IMU_gx, &IMU_gy, &IMU_gz);
-
-  #ifdef OUTPUT_READABLE_IMU
-    Serial.print(IMU_multiplexer); Serial.print(" : ax/ay/az \t");
-    Serial.print(IMU_ax/1000); Serial.print("/");
-    Serial.print(IMU_ay/1000); Serial.print("/");
-    Serial.print(IMU_az/1000); Serial.print("\t"); Serial.print(" : gx/gy/gz \t");
-    Serial.print(IMU_gx/100); Serial.print("/");
-    Serial.print(IMU_gy/100); Serial.print("/");
-    Serial.println(IMU_gz/100);
-    Serial.print("\n");
-  #endif
-  // blink LED to indicate activity
-  blinkState = !blinkState;
-  digitalWrite(LED_PIN, blinkState);
-}
-
-void loopIMUTest() {
-  digitalWrite(RT_AD0, LOW); digitalWrite(RC_AD0, HIGH); digitalWrite(LC_AD0, HIGH);
-  IMU_multiplexer[0] = 'R'; IMU_multiplexer[1] = 'T';
-  loopIMU1();
-  
-  digitalWrite(RT_AD0, HIGH); digitalWrite(RC_AD0, LOW); digitalWrite(LC_AD0, HIGH);
-  IMU_multiplexer[0] = 'R'; IMU_multiplexer[1] = 'C';
-  loopIMU1();
-  
-  digitalWrite(RT_AD0, HIGH); digitalWrite(RC_AD0, HIGH); digitalWrite(LC_AD0, LOW);
-  IMU_multiplexer[0] = 'L'; IMU_multiplexer[1] = 'C';
-  loopIMU1();
-}
-
 /*
 void setupIMUL() {
   // join I2C bus (I2Cdev library doesn't do this automatically)
@@ -229,7 +133,7 @@ void setupIMUL() {
   Serial.print(IMU_LC.getZGyroOffset()); Serial.print("\t"); // 0
   Serial.print("\n");
 }*/
-/*
+
 void setupIMUR() {
   // join I2C bus (I2Cdev library doesn't do this automatically)
   #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
@@ -291,19 +195,18 @@ void setupIMUR() {
   Serial.print(IMU_RC.getYGyroOffset()); Serial.print("\t"); // 0
   Serial.print(IMU_RC.getZGyroOffset()); Serial.print("\t"); // 0
   Serial.print("\n");
-}*/
+}
 void setupIMU() {
   //setupIMUL();
-  //setupIMUR();
-  setupIMUTest();
+  setupIMUR();
 }
 
 // the loop routine runs over and over again forever:
-void loopEMGRT() {
-  EMG_RT_VAL = analogRead(EMG_RT_PIN);
+void loopEMGLC() {
+  EMG_LC_VAL = analogRead(EMG_LC_PIN);
   //float voltage = EMG_TOP_VAL * (5.0 / 1023.0); // Analog reading (which goes from 0 - 1023) to a voltage (0 - 5V):
-  MuscleUseRT = ReadEMG(EMG_RT_VAL);
-  Serial.println(EMG_RT_VAL);
+  MuscleUseLC = ReadEMG(EMG_LC_VAL);
+  Serial.println(EMG_LC_VAL);
 }
 void loopEMGRC() {
   EMG_RC_VAL = analogRead(EMG_RC_PIN);
@@ -312,7 +215,7 @@ void loopEMGRC() {
   Serial.println(EMG_RC_VAL);
 }
 void loopEMG() {
-  loopEMGRT();
+  loopEMGLC();
   loopEMGRC();
 }
 /*
@@ -338,7 +241,7 @@ void loopIMUL() {
   blinkState = !blinkState;
   digitalWrite(LED_PIN, blinkState);
 }*/
-/*
+
 void loopIMUR() {
   // read raw accel/gyro measurements from device
   IMU_RT.getMotion6(&IMU_RT_ax, &IMU_RT_ay, &IMU_RT_az, &IMU_RT_gx, &IMU_RT_gy, &IMU_RT_gz);
@@ -350,7 +253,7 @@ void loopIMUR() {
 
   #ifdef OUTPUT_READABLE_IMU_RT
     // display tab-separated accel/gyro x/y/z values
-    Serial.print("a/g:\t");
+    Serial.print("RT a/g:\t");
     Serial.print(IMU_RT_ax/1000); Serial.print("\t");
     Serial.print(IMU_RT_ay/1000); Serial.print("\t");
     Serial.print(IMU_RT_az/1000); Serial.print("\t");
@@ -361,7 +264,7 @@ void loopIMUR() {
 
   #ifdef OUTPUT_READABLE_IMU_RC
     // display tab-separated accel/gyro x/y/z values
-    Serial.print("a/g:\t");
+    Serial.print("RC a/g:\t");
     Serial.print(IMU_RC_ax/1000); Serial.print("\t");
     Serial.print(IMU_RC_ay/1000); Serial.print("\t");
     Serial.print(IMU_RC_az/1000); Serial.print("\t");
@@ -373,11 +276,10 @@ void loopIMUR() {
   // blink LED to indicate activity
   blinkState = !blinkState;
   digitalWrite(LED_PIN, blinkState);
-}*/
+}
 void loopIMU() {
   //loopIMUL();
-  //loopIMUR();
-  loopIMUTest();
+  loopIMUR();
 }
 
 //input processing functions
@@ -395,7 +297,7 @@ void EStopCheck() {
 
 bool SitCheck() { //function is hardcoded w these for sitting IMU_RT_ay, IMU_RT_ax, sitting, standing
   // right now the user must move in a straight line forwards only OR sit (backwards may be seen as a sit)
-  if ((IMU_RT_ax/1000 > 14) && (-4 <= IMU_RT_ay/1000 <= 4)) { // thigh is parallel to ground (a)
+  if (IMU_RT_ax/1000 >= 13) { // thigh is parallel to ground (a)
     Serial.println("SitCheck Results: Yes Sit");
     sitting = true;
     standing = false;
@@ -408,20 +310,17 @@ bool SitCheck() { //function is hardcoded w these for sitting IMU_RT_ay, IMU_RT_
 }
 
 bool StandUpCheck() { 
-  loopEMGRC();
-  if (MuscleUseRC == 1) { //user activating calf, indicates starting to stand 
-    Serial.println("StandUpCheck: Starting Stand");
-    while (standing == false) {
-      EStopCheck();
-      if ((-4 <= IMU_RT_ax/1000 <= 4) && (IMU_RT_ay/1000 > 14)) {
-        standing = true;  //escape loop
-        sitting = false; 
-        Serial.println("StandUpCheck: Finished Stand");
-      }
+  while (standing == false) {
+    EStopCheck();
+    loopIMU();
+    if (IMU_RT_ay/1000 > 14) {
+      standing = true;  //escape loop
+      sitting = false; 
+      Serial.println("StandUpCheck: Finished Stand");
     }
-  }
-  else { //not starting stand 
-    Serial.println("StandUpCheck: Sitting");
+    else { //not starting stand 
+      Serial.println("StandUpCheck: Sitting");
+    }
   }
   return standing;
 }
@@ -432,7 +331,7 @@ bool SwingStanceCheck() {
     delay(300); //delay .3s, chance to start moving
     EStopCheck();
     loopEMGRC(); //update emg/muscleuse val
-    if ((MuscleUseRC == 1) && (IMU_LC_ax > 0)) {  // starting movement with RStance, LSwing 
+    if ((MuscleUseRC == 1) && (MuscleUseLC == 0)) {  // starting movement with RStance, LSwing 
       Serial.println("SwingStanceCheck: Starting Moving, RStance/LSwing");
       moving = true;
       standing = false;
@@ -440,7 +339,7 @@ bool SwingStanceCheck() {
       LStance = false;
       return RStance, LStance, moving;
     }
-    else if ((MuscleUseRC == 0) && (IMU_RC_ax > 0)) { // starting movement with RSwing, LStance
+    else if ((MuscleUseRC == 0) && (MuscleUseLC == 0)) { // starting movement with RSwing, LStance
       Serial.println("SwingStanceCheck: Starting Moving, LStance/RSwing");
       moving = true;
       standing = false;
@@ -454,15 +353,15 @@ bool SwingStanceCheck() {
     }
   }
   else if (moving == true) { // in movement, check if stopping or update phase of movement
-    loopEMGRC(); //update emg & muscleuse val
+    loopEMG(); //update emgs & muscleuse vals
     if (RStance == true) { //standing on right leg at last check
-      if ((MuscleUseRC == 0) && (IMU_RC_ax > 0)) { //if no longer standing on right leg, right in swing 
+      if ((MuscleUseRC == 0) && (MuscleUseLC == 1)) { //if no longer standing on right leg, right in swing 
         RStance = false;
         LStance = true;
         moving = true;
         return RStance, LStance, moving;
       }
-      else if ((MuscleUseRC == 1) && (IMU_LC_ax > 0)) { //still standing on right leg, left in swing
+      else if ((MuscleUseRC == 1) && (MuscleUseLC == 0)) { //still standing on right leg, left in swing
         return RStance, LStance, moving;
       }
       else { // neither in swing; standing
@@ -473,13 +372,13 @@ bool SwingStanceCheck() {
       }
     }
     else if (LStance == true) { //standing on left leg at last check
-      if ((MuscleUseRC == 0) && (IMU_LC_ax > 0)) { //if no longer standing on left leg, left in swing 
+      if ((MuscleUseLC == 0) && (MuscleUseRC == 1)) { //if no longer standing on left leg, left in swing 
         RStance = true;
         LStance = false;
         moving = true;
         return RStance, LStance, moving;
       }
-      else if ((MuscleUseRC == 1) && (IMU_RC_ax > 0)) { //still standing on left leg, right in swing
+      else if ((MuscleUseLC == 1) && (MuscleUseRC == 0)) { //still standing on left leg, right in swing
         return RStance, LStance, moving;
       }
       else { // neither in swing; standing
