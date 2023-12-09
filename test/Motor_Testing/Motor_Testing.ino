@@ -2,6 +2,7 @@
 ExoSuit Project Basics:
 Run code and type 1 (& enter) for LinearActuator_Test()
 Run code and type 2 (& enter) for EStop()
+Run code and type 2 (& enter) for ButtonsRAW()
 =============================================== 
 EStop():
 Testing EStop with 1 linear actuator
@@ -20,7 +21,7 @@ extend, retract, extendVar, retractVar, stop
 int CodeSelector;
 
 void setup() {
-  Serial.begin(38400);
+  Serial.begin(9600);
   Serial.print("Do you want to run EStop (enter 1)?");
   //wait for user input
   while (Serial.available() == 0) {
@@ -28,18 +29,24 @@ void setup() {
   //get user input into CodeSelecter
   CodeSelector = Serial.parseInt();
   if (CodeSelector == 1) {      //LA_Test
-    setupLA(); 
+    //setupLA(); 
   }
   else if (CodeSelector == 2) {  //EStop
-    setupES(); 
+    //setupES(); 
+  }
+  else if (CodeSelector == 3) {
+    setupB();
   }
 }
 
 void loop() {
   if (CodeSelector == 1) {      //LA_Test
-    loopLA(); 
+    //loopLA(); 
   }
   else if (CodeSelector == 2) {  //EStop
-    loopES(); 
+    //loopES(); 
+  }
+  else if (CodeSelector == 3) {
+    loopB();
   }
 }

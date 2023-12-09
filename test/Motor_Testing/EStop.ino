@@ -13,7 +13,7 @@ const int EStop_PIN = 9;
 
 int EStop = 0;
 int timeExtend = 0;
-
+/*
 void EStopCheck() {
   EStop = digitalRead(EStop_PIN);
   if (EStop == 1) {
@@ -40,4 +40,4 @@ void loopES() {
   extendVarLA(25, 500); //extend at 1/4 speed for 0.5s 
   delay(500); //delay 0.5s
   EStopCheck();
-}
+}*/

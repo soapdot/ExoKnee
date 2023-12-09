@@ -1,25 +1,17 @@
 /* ==============================================
 ExoSuit Project Main: 
-5 sensors: EMG_LC, EMG_RC, IMU_LC, IMU_RT, IMU_RC
-Abbreviations: R/L = Right/Left, T/C = Thigh/Calf
+5 sensors: Button_LF, Button_RF, IMU_RT, IMU_RC
+Abbreviations: R/L = Right/Left, T/C/F = Thigh/Calf/Foot
 =================================================
 IMU (inertial measurement unit) Sensor for RT/RC
 R wired to: I2C pins "SDA/SCL" on Arduino MEGA
-L wired to: pins above AREF on Arduino MEGA
 =================================================
-For IMUs; x, y, z defined as:
-. x forward (pointing past knee), 
-. y up (pointing toward body of user), 
-. z away from leg (toward observer)
-when looking at the leg from the side view 
+For IMUs; x, y defined as:
+. x: 
+. y:  
 =================================================
-EMG (Electromyography) Sensor for RC/LC
-Wired to: +-9V/1A, A2 (RC) & A1 (LC)
-=================================================
-For EMGs; 
-Value is between 0-1000 where >500 is high
-For now, only counting MuscleUse as a bool
-May add levels based on average findings (0-3)
+Button_LF: under left foot, wired to 
+Button_RF: under right foot, wired to
 =================================================*/
 
 // Arduino Wire library is required if I2Cdev I2CDEV_ARDUINO_WIRE implementation
@@ -28,21 +20,15 @@ May add levels based on average findings (0-3)
   #include "Wire.h"
 #endif
 
-// tab-separated list of the accel X/Y/Z & gyro X/Y/Z values in decimal. Easy to read, not to parse, slow(er) over UART.
-#define OUTPUT_READABLE_IMU_RT
-#define OUTPUT_READABLE_IMU_RC
-#define OUTPUT_READABLE_IMU_LC
+//#define LED_PIN 13
+#define Button_LF_PIN A0
+#define Button_RF_PIN A1
+#define INT_PIN 53
+#define EStop_PIN 3
+#define EN_PIN 6
+#define R_PWM_PIN 4
+#define L_PWM_PIN 5
 
-#define LED_PIN 13
-#define EMG_LC_PIN A1
-#define EMG_RC_PIN A2
-#define EStop_PIN 9
-#define EN_PIN 4
-#define R_PWM_PIN 5
-#define L_PWM_PIN 6
-
-bool blinkState = false;              //updates LED
-int MuscleUseRC = 0, MuscleUseLC = 0; //updated by EMG 
 int EStop = 0;                        //updated by estop button
 int speed = 0;                        //used by LA, speed 0-255 
 int percentExtend = 0;  //not actually %, but an int out of 2000 (time for max extend/retract at max speed)
@@ -51,90 +37,28 @@ bool RStance = true, LStance = true;                   //standing = stanced both
 
 // IMU Sensors: I2C, 3.3V, GND; DI interrupt, DI AD0
 MPU6050 IMU_RT(0x68), IMU_RC(0x69); // I2C addr: AD0 low = 0x68 (default) | AD0 high = 0x69
-//MPU6050 IMU_LC(0x68); //MPU6050 IMU_L(0x68, &Wire1); // <-- use for AD0 low, but 2nd Wire (TWI/I2C) object
 
-int16_t IMU_LC_ax, IMU_LC_ay, IMU_LC_az, IMU_LC_gx, IMU_LC_gy, IMU_LC_gz; //a = accelerometer value
-int16_t IMU_RT_ax, IMU_RT_ay, IMU_RT_az, IMU_RT_gx, IMU_RT_gy, IMU_RT_gz; //g = gyroscope value
-int16_t IMU_RC_ax, IMU_RC_ay, IMU_RC_az, IMU_RC_gx, IMU_RC_gy, IMU_RC_gz; //xyz = directions defined at top of file
+int16_t IMU_RT_ax, IMU_RT_ay, IMU_RT_az; //a = accelerometer value
+int16_t IMU_RC_ax, IMU_RC_ay, IMU_RC_az; //xyz = directions defined at top of file
 
-// EMG Sensors: 5V, GND; AI input
-int EMG_LC_VAL, EMG_RC_VAL; //analog input of muscle sensor 0-1023
+// Foot Buttons
+int Button_LF, Button_RF;
 
 // Motor Controller/Linear Actuator used for clarity to reader
 int EN = EN_PIN, R_PWM = R_PWM_PIN, L_PWM = L_PWM_PIN;
 
-int ReadEMG(int EMG_VAL) {
-  int MuscleUse;
-  if (EMG_VAL < 50) {
-    MuscleUse = 0;
-  }
-  else if ((EMG_VAL > 50) && (EMG_VAL < 1000)){ //catching all usage right now; will expand 
-    MuscleUse = 1;
-  }
-  return MuscleUse;
-}
-
 //setup/loops
 // the setup routine runs once when you press reset:
-void setupEMGLC() {
+void setupButton() {
   // initialize serial communication at 9600 bits per second:
-  EMG_LC_VAL = 0;
-  Serial.println("Initializing A1 Device [EMG_LC]");
-  MuscleUseLC = ReadEMG(EMG_LC_VAL);
-  pinMode(EMG_LC_PIN, INPUT);
+  Button_LF = 0;
+  Button_RF = 0;
+  Serial.println("Initializing Step Switches");
+  pinMode(Button_LF_PIN, INPUT);
+  pinMode(Button_RF_PIN, INPUT);
 }
-void setupEMGRC() {
-  // initialize serial communication at 9600 bits per second:
-  EMG_RC_VAL = 0;
-  Serial.println("Initializing A2 Device [EMG_RC]");
-  MuscleUseRC = ReadEMG(EMG_RC_VAL);
-  pinMode(EMG_RC_PIN, INPUT);
-}
-void setupEMG() {
-  setupEMGLC();
-  setupEMGRC();
-} 
-/*
-void setupIMUL() {
-  // join I2C bus (I2Cdev library doesn't do this automatically)
-  #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
-    Wire.begin();
-  #elif I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_FASTWIRE
-    Fastwire::setup(400, true);
-  #endif
 
-  // initialize device
-  Serial.println("Initializing I2C (LC) device...");
-  IMU_LC.initialize();
-
-  // verify connection
-  Serial.println("Testing device (LC) connection...");
-  Serial.println(IMU_LC.testConnection() ? "MPU6050 LC connection successful" : "MPU6050 LC connection failed");
-  
-  // use the code below to change accel/gyro offset values
-
-  Serial.println("Updating internal LC sensor offsets...");
-  // -76	-2359	1688	0	0	0
-  Serial.print(IMU_LC.getXAccelOffset()); Serial.print("\t"); // -76
-  Serial.print(IMU_LC.getYAccelOffset()); Serial.print("\t"); // -2359
-  Serial.print(IMU_LC.getZAccelOffset()); Serial.print("\t"); // 1688
-  Serial.print(IMU_LC.getXGyroOffset()); Serial.print("\t"); // 0
-  Serial.print(IMU_LC.getYGyroOffset()); Serial.print("\t"); // 0
-  Serial.print(IMU_LC.getZGyroOffset()); Serial.print("\t"); // 0
-  Serial.print("\n");
-  IMU_LC.setXGyroOffset(220);
-  IMU_LC.setYGyroOffset(76);
-  IMU_LC.setZGyroOffset(-85);
-  Serial.print(IMU_LC.getXAccelOffset()); Serial.print("\t"); // -76
-  Serial.print(IMU_LC.getYAccelOffset()); Serial.print("\t"); // -2359
-  Serial.print(IMU_LC.getZAccelOffset()); Serial.print("\t"); // 1688
-  Serial.print(IMU_LC.getXGyroOffset()); Serial.print("\t"); // 0
-  Serial.print(IMU_LC.getYGyroOffset()); Serial.print("\t"); // 0
-  Serial.print(IMU_LC.getZGyroOffset()); Serial.print("\t"); // 0
-  Serial.print("\n");
-}*/
-
-void setupIMUR() {
+void setupIMU() {
   // join I2C bus (I2Cdev library doesn't do this automatically)
   #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
     Wire.begin();
@@ -153,141 +77,58 @@ void setupIMUR() {
   Serial.println(IMU_RC.testConnection() ? "MPU6050 RC connection successful" : "MPU6050 RC connection failed");
 
   // use the code below to change accel/gyro offset values
-
   Serial.println("Updating internal RT sensor offsets...");
   // -76	-2359	1688	0	0	0
+  Serial.print("RT Accel Offset: ");
   Serial.print(IMU_RT.getXAccelOffset()); Serial.print("\t"); // -76
   Serial.print(IMU_RT.getYAccelOffset()); Serial.print("\t"); // -2359
   Serial.print(IMU_RT.getZAccelOffset()); Serial.print("\t"); // 1688
-  Serial.print(IMU_RT.getXGyroOffset()); Serial.print("\t"); // 0
-  Serial.print(IMU_RT.getYGyroOffset()); Serial.print("\t"); // 0
-  Serial.print(IMU_RT.getZGyroOffset()); Serial.print("\t"); // 0
   Serial.print("\n");
-  IMU_RT.setXGyroOffset(220);
-  IMU_RT.setYGyroOffset(76);
-  IMU_RT.setZGyroOffset(-85);
-  Serial.print(IMU_RT.getXAccelOffset()); Serial.print("\t"); // -76
-  Serial.print(IMU_RT.getYAccelOffset()); Serial.print("\t"); // -2359
-  Serial.print(IMU_RT.getZAccelOffset()); Serial.print("\t"); // 1688
-  Serial.print(IMU_RT.getXGyroOffset()); Serial.print("\t"); // 0
-  Serial.print(IMU_RT.getYGyroOffset()); Serial.print("\t"); // 0
-  Serial.print(IMU_RT.getZGyroOffset()); Serial.print("\t"); // 0
-  Serial.print("\n");
-
-  // use the code below to change accel/gyro offset values
-
+  
   Serial.println("Updating internal RC sensor offsets...");
   // -76	-2359	1688	0	0	0
+  Serial.print("RC Accel Offset: ");
   Serial.print(IMU_RC.getXAccelOffset()); Serial.print("\t"); // -76
   Serial.print(IMU_RC.getYAccelOffset()); Serial.print("\t"); // -2359
   Serial.print(IMU_RC.getZAccelOffset()); Serial.print("\t"); // 1688
-  Serial.print(IMU_RC.getXGyroOffset()); Serial.print("\t"); // 0
-  Serial.print(IMU_RC.getYGyroOffset()); Serial.print("\t"); // 0
-  Serial.print(IMU_RC.getZGyroOffset()); Serial.print("\t"); // 0
-  Serial.print("\n");
-  IMU_RC.setXGyroOffset(220);
-  IMU_RC.setYGyroOffset(76);
-  IMU_RC.setZGyroOffset(-85);
-  Serial.print(IMU_RC.getXAccelOffset()); Serial.print("\t"); // -76
-  Serial.print(IMU_RC.getYAccelOffset()); Serial.print("\t"); // -2359
-  Serial.print(IMU_RC.getZAccelOffset()); Serial.print("\t"); // 1688
-  Serial.print(IMU_RC.getXGyroOffset()); Serial.print("\t"); // 0
-  Serial.print(IMU_RC.getYGyroOffset()); Serial.print("\t"); // 0
-  Serial.print(IMU_RC.getZGyroOffset()); Serial.print("\t"); // 0
   Serial.print("\n");
 }
-void setupIMU() {
-  //setupIMUL();
-  setupIMUR();
-}
+
 
 // the loop routine runs over and over again forever:
-void loopEMGLC() {
-  EMG_LC_VAL = analogRead(EMG_LC_PIN);
-  //float voltage = EMG_TOP_VAL * (5.0 / 1023.0); // Analog reading (which goes from 0 - 1023) to a voltage (0 - 5V):
-  MuscleUseLC = ReadEMG(EMG_LC_VAL);
-  Serial.println(EMG_LC_VAL);
+void loopButton(int printx) {
+  Button_LF = digitalRead(Button_LF_PIN);
+  Button_RF = digitalRead(Button_RF_PIN);
+  if (Button_RF == 1) {
+    Button_RF = 0;
+  }
+  else {
+    Button_RF = 1;
+  }
+
+  if (printx == 1) {
+    Serial.print("LF / RF:\t");
+    Serial.print(Button_LF); Serial.print(" /t "); Serial.println(Button_RF);
+  }
 }
-void loopEMGRC() {
-  EMG_RC_VAL = analogRead(EMG_RC_PIN);
-  //float voltage = EMG_BOT_VAL * (5.0 / 1023.0);
-  MuscleUseRC = ReadEMG(EMG_RC_VAL);
-  Serial.println(EMG_RC_VAL);
-}
-void loopEMG() {
-  loopEMGLC();
-  loopEMGRC();
-}
-/*
-void loopIMUL() {
-  // read raw accel/gyro measurements from device
-  IMU_LC.getMotion6(&IMU_LC_ax, &IMU_LC_ay, &IMU_LC_az, &IMU_LC_gx, &IMU_LC_gy, &IMU_LC_gz);
 
-  // these methods (and a few others) are also available
-  //IMU_L.getAcceleration(&IMU_L_ax, &IMU_L_ay, &IMU_L_az);
-  //IMU_L.getRotation(&IMU_L_gx, &IMU_L_gy, &IMU_L_gz);
-
-  #ifdef OUTPUT_READABLE_IMU_LC
-    // display tab-separated accel/gyro x/y/z values
-    Serial.print("a/g:\t");
-    Serial.print(IMU_LC_ax/1000); Serial.print("\t");
-    Serial.print(IMU_LC_ay/1000); Serial.print("\t");
-    Serial.print(IMU_LC_az/1000); Serial.print("\t");
-    Serial.print(IMU_LC_gx/100); Serial.print("\t");
-    Serial.print(IMU_LC_gy/100); Serial.print("\t");
-    Serial.println(IMU_LC_gz/100);
-  #endif
-  // blink LED to indicate activity
-  blinkState = !blinkState;
-  digitalWrite(LED_PIN, blinkState);
-}*/
-
-void loopIMUR() {
-  // read raw accel/gyro measurements from device
-  IMU_RT.getMotion6(&IMU_RT_ax, &IMU_RT_ay, &IMU_RT_az, &IMU_RT_gx, &IMU_RT_gy, &IMU_RT_gz);
-  IMU_RC.getMotion6(&IMU_RC_ax, &IMU_RC_ay, &IMU_RC_az, &IMU_RC_gx, &IMU_RC_gy, &IMU_RC_gz);
-
-  // these methods (and a few others) are also available
-  //IMU_RT.getAcceleration(&IMU_L_ax, &IMU_L_ay, &IMU_L_az);
-  //IMU_RT.getRotation(&IMU_L_gx, &IMU_L_gy, &IMU_L_gz);
-
-  #ifdef OUTPUT_READABLE_IMU_RT
-    // display tab-separated accel/gyro x/y/z values
-    Serial.print("RT a/g:\t");
-    Serial.print(IMU_RT_ax/1000); Serial.print("\t");
-    Serial.print(IMU_RT_ay/1000); Serial.print("\t");
-    Serial.print(IMU_RT_az/1000); Serial.print("\t");
-    Serial.print(IMU_RT_gx/100); Serial.print("\t");
-    Serial.print(IMU_RT_gy/100); Serial.print("\t");
-    Serial.println(IMU_RT_gz/100);
-  #endif
-
-  #ifdef OUTPUT_READABLE_IMU_RC
-    // display tab-separated accel/gyro x/y/z values
-    Serial.print("RC a/g:\t");
-    Serial.print(IMU_RC_ax/1000); Serial.print("\t");
-    Serial.print(IMU_RC_ay/1000); Serial.print("\t");
-    Serial.print(IMU_RC_az/1000); Serial.print("\t");
-    Serial.print(IMU_RC_gx/100); Serial.print("\t");
-    Serial.print(IMU_RC_gy/100); Serial.print("\t");
-    Serial.println(IMU_RC_gz/100);
-  #endif
-
-  // blink LED to indicate activity
-  blinkState = !blinkState;
-  digitalWrite(LED_PIN, blinkState);
-}
-void loopIMU() {
-  //loopIMUL();
-  loopIMUR();
+void loopIMU(int printx) {
+  // read raw accel measurements from device
+  IMU_RT.getAcceleration(&IMU_RT_ax, &IMU_RT_ay, &IMU_RT_az);
+  IMU_RC.getAcceleration(&IMU_RC_ax, &IMU_RC_ay, &IMU_RC_az);
+  if (printx == 1) {
+    Serial.print("RT x / y:\t");
+    Serial.print(IMU_RT_ax/1000); Serial.print(" / "); Serial.println(IMU_RT_ay/1000); 
+    Serial.print("RC x / y:\t");
+    Serial.print(IMU_RC_ax/1000); Serial.print(" / "); Serial.println(IMU_RC_ay/1000);
+  }
 }
 
 //input processing functions
-
 void EStopCheck() {
-  EStop = digitalRead(EStop_PIN);
-  if (EStop == 1) {
-  Serial.println("EStop: Emergency Stop Engaged!");
+  EStop = analogRead(EStop_PIN);
+  if (EStop > 900) {
+    Serial.println("EStop: Emergency Stop Engaged!");
     while (1) {
       Serial.println("EStop: In endless while loop"); //this stops code from doing anything else
       delay(3000); //delay 3s before writing again
@@ -295,98 +136,125 @@ void EStopCheck() {
   }
 }
 
-bool SitCheck() { //function is hardcoded w these for sitting IMU_RT_ay, IMU_RT_ax, sitting, standing
-  // right now the user must move in a straight line forwards only OR sit (backwards may be seen as a sit)
-  if (IMU_RT_ax/1000 >= 13) { // thigh is parallel to ground (a)
+void assistLEDs(int BUTTON_PIN) {
+  digitalWrite(BUTTON_PIN, 1);
+  delay(3000);
+  digitalWrite(BUTTON_PIN, 0);
+}
+
+int KneeAngle() {
+  loopIMU(0);
+  // stright T: 16 0 
+  // straight C: 16 0
+  // sitting T: 0 16
+  // start stand T: 11 11 
+  // raise leg C: -11 11 (check)
+}
+
+bool SitCheck() { // IMU_RT_ay, IMU_RT_ax, sitting, standing
+  if (IMU_RT_ax/1000 > 13) { // thigh is parallel to ground (a)
     Serial.println("SitCheck Results: Yes Sit");
-    sitting = true;
-    standing = false;
+    sitting = true; standing = false;
   }
   else {
-    Serial.println("SitCheck Results: No Sit");
-    sitting = false;
+    Serial.println("SitCheck Results: Not Sit");
+    sitting = false; standing = true;
+    RStance = true; LStance = true;
   }
   return sitting;
 }
 
 bool StandUpCheck() { 
-  while (standing == false) {
-    EStopCheck();
-    loopIMU();
-    if (IMU_RT_ay/1000 > 14) {
-      standing = true;  //escape loop
-      sitting = false; 
-      Serial.println("StandUpCheck: Finished Stand");
+  if (IMU_RT_ay/1000 > 12) {
+    standing = true; sitting = false; 
+    LStance = true; RStance = true;
+    Serial.println("StandUpCheck: Finished Stand");
+  }
+  else if (IMU_RT_ay/1000 > 10) {
+    Serial.println("StandUpCheck: Starting Stand");
+    Serial.println("StandUpCheck: Starting Extend Assistance L/R (0.3s)");
+    while ((IMU_RT_ay/1000 > 12) == false) {
+      loopIMU(0);
+      if (IMU_RT_ay/1000 > 12) {
+        Serial.println("StandUpCheck: Finished Stand");
+      }
     }
-    else { //not starting stand 
-      Serial.println("StandUpCheck: Sitting");
-    }
+    //TODO: assist L + R (bend)
+    //assistLEDs(Button_LF_PIN);
+    //assistLEDs(Button_RF_PIN);
+  }
+  else { //not starting stand 
+    standing = false; sitting = true; 
+    Serial.println("StandUpCheck: Sitting");
   }
   return standing;
 }
 
 bool SwingStanceCheck() {
-  int standCount = 0;
+  //EStopCheck();
+  loopButton(0); //update 
   if (standing == true) { //rstance = true, moving = false; check if starting movement
-    delay(300); //delay .3s, chance to start moving
-    EStopCheck();
-    loopEMGRC(); //update emg/muscleuse val
-    if ((MuscleUseRC == 1) && (MuscleUseLC == 0)) {  // starting movement with RStance, LSwing 
+    if ((Button_RF == 1) && (Button_LF == 0)) {  // starting movement with RStance, LSwing 
       Serial.println("SwingStanceCheck: Starting Moving, RStance/LSwing");
-      moving = true;
-      standing = false;
-      RStance = true;
-      LStance = false;
-      return RStance, LStance, moving;
+      moving = true; standing = false;
+      LStance = false; RStance = true; 
+      //TODO: start assistance L
+      Serial.println("Starting Bend Assistance L (0.3s)");
+      //assistLEDs(Button_LF_PIN);
     }
-    else if ((MuscleUseRC == 0) && (MuscleUseLC == 0)) { // starting movement with RSwing, LStance
+    else if ((Button_RF == 0) && (Button_LF == 1)) { // starting movement with RSwing, LStance
       Serial.println("SwingStanceCheck: Starting Moving, LStance/RSwing");
-      moving = true;
-      standing = false;
-      RStance = false;
-      LStance = true;
-      return RStance, LStance, moving;
+      moving = true; standing = false;
+      LStance = true; RStance = false; 
+      //TODO: start assistance R
+      Serial.println("Starting Bend Assistance R (0.3s)");
+      //assistLEDs(Button_RF_PIN);
     }
     else { //still standing
       Serial.println("SwingStanceCheck: Standing");
-      return RStance, LStance, moving;
+      moving = false; standing = true;
+      LStance = true; RStance = true; 
     }
+    return LStance, RStance, moving;
   }
   else if (moving == true) { // in movement, check if stopping or update phase of movement
-    loopEMG(); //update emgs & muscleuse vals
     if (RStance == true) { //standing on right leg at last check
-      if ((MuscleUseRC == 0) && (MuscleUseLC == 1)) { //if no longer standing on right leg, right in swing 
-        RStance = false;
-        LStance = true;
-        moving = true;
-        return RStance, LStance, moving;
+      if ((Button_LF == 1) && (Button_RF == 0)) { //if no longer standing on right leg, right in swing 
+        Serial.println("SwingStanceCheck: Change movement, RSwing/LStance");
+        LStance = true; RStance = false; 
+        //TODO: start assistance R
+        Serial.println("Starting Bend Assistance R (0.3s)");
+        //assistLEDs(Button_RF_PIN);
       }
-      else if ((MuscleUseRC == 1) && (MuscleUseLC == 0)) { //still standing on right leg, left in swing
-        return RStance, LStance, moving;
+      else if ((Button_LF == 0) && (Button_RF == 1)) { //still standing on right leg, left in swing
+        Serial.println("SwingStanceCheck: Continue movement, RStance/LSwing");
+        //everything should be/stay at expected values
       }
-      else { // neither in swing; standing
-        moving = false;
-        LStance = true;
-        standing = true;
-        return RStance, LStance, moving;
+      else if ((Button_LF == 1) && (Button_RF == 1)) { // neither in swing; standing
+        Serial.println("SwingStanceCheck: Stop movement, stand");
+        moving = false; standing = true;
+        LStance = true; RStance = true;
       }
+      return LStance, RStance, moving;
     }
     else if (LStance == true) { //standing on left leg at last check
-      if ((MuscleUseLC == 0) && (MuscleUseRC == 1)) { //if no longer standing on left leg, left in swing 
-        RStance = true;
-        LStance = false;
-        moving = true;
-        return RStance, LStance, moving;
+      if ((Button_LF == 0) && (Button_RF == 1)) { //if no longer standing on left leg, left in swing 
+        Serial.println("SwingStanceCheck: Change movement, RStance/LSwing");
+        LStance = false; RStance = true;
+        //TODO: start assistance L
+        Serial.println("Starting Bend Assistance L (0.3s)");
+        //assistLEDs(Button_LF_PIN);
       }
-      else if ((MuscleUseLC == 1) && (MuscleUseRC == 0)) { //still standing on left leg, right in swing
-        return RStance, LStance, moving;
+      else if ((Button_LF == 1) && (Button_RF == 0)) { //still standing on left leg, right in swing
+        Serial.println("SwingStanceCheck: Continue movement, RSwing/LStance");
+        //everything should be/stay at expected values
       }
-      else { // neither in swing; standing
-        moving = false;
-        LStance = true;
-        standing = true;
-        return RStance, LStance, moving;
+      else if ((Button_LF == 1) && (Button_RF == 1)) { // neither in swing; standing
+        Serial.println("SwingStanceCheck: Stop movement, stand");
+        moving = false; standing = true;
+        LStance = true; RStance = true;
       }
+      return LStance, RStance, moving;
     }
   }
 }
