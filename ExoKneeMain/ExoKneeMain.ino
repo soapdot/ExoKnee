@@ -28,19 +28,17 @@ when looking at the leg from the side view
 void setup() {
   Serial.begin(2400); // 2400 FOR IMU & 9600 FOR EMG (IMU/EMG Rec: 115200)
   // configure inputs/outputs
-  pinMode(LED_PIN, OUTPUT);
   pinMode(EStop_PIN, INPUT);
   pinMode(EN_PIN, OUTPUT);
   pinMode(R_PWM_PIN, OUTPUT);
   pinMode(L_PWM_PIN, OUTPUT);
   setupIMU();
   setupButton();
-  delay(5000); //delay 5s
 }
 
 void loop() {
   //check estop button for input
-  //EStopCheck();
+  EStopCheck();
   //update vals
   //Serial.println("FirstLoop");
   loopIMU(0);
@@ -50,15 +48,15 @@ void loop() {
   sitting = SitCheck(); //IMU_RT_ax, IMU_RT_ay
   while (sitting == true) { //while sitting, until standing:
     //output to c++ : sit mode
-    //EStopCheck();
+    EStopCheck();
     loopIMU(0);
     standing = StandUpCheck(); //stay in StandUpCheck function (won't be doing other movement func during sit)
   }
-  //EStopCheck();
+  EStopCheck();
   loopButton(0);
   RStance, LStance, moving = SwingStanceCheck();
   while (moving == true) { //continuing from last check
-    //EStopCheck();
+    EStopCheck();
     loopButton(0);
     RStance, LStance, moving = SwingStanceCheck();
   }

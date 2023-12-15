@@ -22,14 +22,14 @@ int CodeSelector;
 
 void setup() {
   Serial.begin(9600);
-  Serial.print("Do you want to run EStop (enter 1)?");
+  Serial.println("Do you want to run EStop (enter 1)?");
   //wait for user input
   while (Serial.available() == 0) {
   }
   //get user input into CodeSelecter
   CodeSelector = Serial.parseInt();
   if (CodeSelector == 1) {      //LA_Test
-    //setupLA(); 
+    setupLA(); 
   }
   else if (CodeSelector == 2) {  //EStop
     //setupES(); 
@@ -41,7 +41,7 @@ void setup() {
 
 void loop() {
   if (CodeSelector == 1) {      //LA_Test
-    //loopLA(); 
+    loopLA(); 
   }
   else if (CodeSelector == 2) {  //EStop
     //loopES(); 

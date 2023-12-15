@@ -7,10 +7,10 @@ Wired to:
   . Motor Controller wired to +12V/gnd & motor
 . Button (gnd, 5V, DI9, pulldown resistor 1kohm)
 ===============================================*/
-const int EN_PIN = 4;
+const int EN_PIN = 3;
 const int R_PWM_PIN = 5;
 const int L_PWM_PIN = 6;
-const uint8_t EN = 4;
+const uint8_t EN = 3;
 const uint8_t R_PWM = 5;
 const uint8_t L_PWM = 6;
 int speed = 0;
@@ -79,6 +79,7 @@ void retractVarLA(int speedI, int delayTime) {
     Serial.println("RetractVarLA: Input speed out of bounds. Int [0-100]");
     return;
   }
+  digitalWrite(EN_PIN, 1);
   delayTime = LABoundsCheck(speedI, delayTime, 1); //will overwrite delayTime with time it takes at speedI to fully retract if past limits. does nothing otherwise.
   speedI = speedI*255/100; //convert to actual speed
   analogWrite(R_PWM, speedI);
@@ -105,8 +106,8 @@ void loopLA() {
   // turn on actuator (full speed) for 2s
   extendLA();
   // retract actuator (half speed 127 = 255/2) for 4s
-  retractVarLA(127, 4000); 
-  Serial.print("Do you want to quit LA motion? (Y/N)");
+  retractVarLA(50, 4000); 
+  Serial.println("Do you want to quit LA motion? (Y/N)");
   while (Serial.available() == 0) { //wait for user input
   }
   StopLA = Serial.read();

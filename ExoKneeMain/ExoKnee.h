@@ -6,9 +6,7 @@ Abbreviations: R/L = Right/Left, T/C/F = Thigh/Calf/Foot
 IMU (inertial measurement unit) Sensor for RT/RC
 R wired to: I2C pins "SDA/SCL" on Arduino MEGA
 =================================================
-For IMUs; x, y defined as:
-. x: 
-. y:  
+For IMUs; x, y defined on the sensor
 =================================================
 Button_LF: under left foot, wired to 
 Button_RF: under right foot, wired to
@@ -128,6 +126,7 @@ void loopIMU(int printx) {
 void EStopCheck() {
   EStop = analogRead(EStop_PIN);
   if (EStop > 900) {
+    //stopLA();
     Serial.println("EStop: Emergency Stop Engaged!");
     while (1) {
       Serial.println("EStop: In endless while loop"); //this stops code from doing anything else
@@ -144,6 +143,7 @@ void assistLEDs(int BUTTON_PIN) {
 
 int KneeAngle() {
   loopIMU(0);
+  // to be done by a future team for processing limits of human knee. 
   // stright T: 16 0 
   // straight C: 16 0
   // sitting T: 0 16
@@ -179,9 +179,6 @@ bool StandUpCheck() {
         Serial.println("StandUpCheck: Finished Stand");
       }
     }
-    //TODO: assist L + R (bend)
-    //assistLEDs(Button_LF_PIN);
-    //assistLEDs(Button_RF_PIN);
   }
   else { //not starting stand 
     standing = false; sitting = true; 
@@ -191,7 +188,7 @@ bool StandUpCheck() {
 }
 
 bool SwingStanceCheck() {
-  //EStopCheck();
+  EStopCheck();
   loopButton(0); //update 
   if (standing == true) { //rstance = true, moving = false; check if starting movement
     if ((Button_RF == 1) && (Button_LF == 0)) {  // starting movement with RStance, LSwing 
@@ -200,7 +197,6 @@ bool SwingStanceCheck() {
       LStance = false; RStance = true; 
       //TODO: start assistance L
       Serial.println("Starting Bend Assistance L (0.3s)");
-      //assistLEDs(Button_LF_PIN);
     }
     else if ((Button_RF == 0) && (Button_LF == 1)) { // starting movement with RSwing, LStance
       Serial.println("SwingStanceCheck: Starting Moving, LStance/RSwing");
@@ -208,7 +204,6 @@ bool SwingStanceCheck() {
       LStance = true; RStance = false; 
       //TODO: start assistance R
       Serial.println("Starting Bend Assistance R (0.3s)");
-      //assistLEDs(Button_RF_PIN);
     }
     else { //still standing
       Serial.println("SwingStanceCheck: Standing");
@@ -224,7 +219,6 @@ bool SwingStanceCheck() {
         LStance = true; RStance = false; 
         //TODO: start assistance R
         Serial.println("Starting Bend Assistance R (0.3s)");
-        //assistLEDs(Button_RF_PIN);
       }
       else if ((Button_LF == 0) && (Button_RF == 1)) { //still standing on right leg, left in swing
         Serial.println("SwingStanceCheck: Continue movement, RStance/LSwing");
@@ -243,7 +237,6 @@ bool SwingStanceCheck() {
         LStance = false; RStance = true;
         //TODO: start assistance L
         Serial.println("Starting Bend Assistance L (0.3s)");
-        //assistLEDs(Button_LF_PIN);
       }
       else if ((Button_LF == 1) && (Button_RF == 0)) { //still standing on left leg, right in swing
         Serial.println("SwingStanceCheck: Continue movement, RSwing/LStance");
